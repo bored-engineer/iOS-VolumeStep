@@ -1,0 +1,9 @@
+Package: com.innoying.volumestep
+Name: VolumeStep
+Depends: mobilesubstrate, preferenceloader
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: An awesome tweak to change the step by which the volume buttons increment. If you've ever been bugged by not quite being able to change the volume to exactly where you want it this tweak is for you. It allows you to reduce the volume step by percentages in preferences. The default is to cut it in half.
+Maintainer: innoying
+Author: innoying
+Section: Tweaks
