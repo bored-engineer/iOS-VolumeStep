@@ -1,21 +1,42 @@
-#include <SpringBoard/VolumeControl.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+
+static BOOL GetBooleanSetting(NSString *key, BOOL defaultValue)
+{
+    Boolean exists;
+    Boolean result = CFPreferencesGetAppBooleanValue((CFStringRef)key, CFSTR("com.innoying.volumestep"), &exists);
+    return exists ? result : defaultValue;
+}
+
+
+static double GetDoubleSetting(NSString *key, double defaultValue)
+{
+    id value = (id)CFPreferencesCopyAppValue((CFStringRef)key, CFSTR("com.innoying.volumestep"));
+    double result = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : defaultValue;
+    [value release];
+    return result;
+}
 
 %hook VolumeControl
-//0.06 is default
 -(void)_changeVolumeBy:(float)by {
-	//Get settings dictionary
-	NSDictionary *settingsDict = [NSDictionary dictionaryWithContentsOfFile:@"/private/var/mobile/Library/Preferences/com.innoying.volumestep.plist"];
-	//Get enabled status
-	BOOL Enabled = [settingsDict objectForKey:@"enabled"] ? [[settingsDict objectForKey:@"enabled"] boolValue] : YES;
-	//If enabled
-	if(Enabled){
-		//Extract the split value
-		float Split = [settingsDict objectForKey:@"Step"] ? [[settingsDict objectForKey:@"Step"] floatValue] : .5;
-		NSLog(@"VolumeControl step reduced to: %.2f", (Split));
-		//Convert from percentage than multiple
-		by = by*Split;
-	}
-	//Run original
-	%orig(by);
+
+    bool enabled = GetBooleanSetting(@"enabled", YES);
+    float multiplier = GetDoubleSetting(@"multiplier", 0.5f);
+    if (enabled) {
+        by = by * multiplier;
+        %log(@"Volume-Step VolumeControl enabled, changing step");
+    }
+    %orig(by);
 }
 %end
+
+static void PreferencesCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo)
+{
+    CFPreferencesAppSynchronize(CFSTR("com.innoying.volumestep"));
+}
+
+%ctor
+{
+    %init();
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, PreferencesCallback, CFSTR("com.innoying.volumestep.config-changed"), NULL, CFNotificationSuspensionBehaviorCoalesce);
+}
